@@ -8,6 +8,16 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local PlayerMouse = Player:GetMouse()
 
+local ClickSound = Instance.new("Sound")
+ClickSound.Name = "UIClick"
+ClickSound.SoundId = "rbxassetid://139658322785649" -- som de clique clássico (pode trocar)
+ClickSound.Volume = 0.6
+ClickSound.Parent = game:GetService("SoundService") -- ou ScreenGui
+
+local function PlayClick()
+	ClickSound:Play()
+end
+
 local redzlib = {
 	Themes = {
 		Darker = {
@@ -37,20 +47,20 @@ local redzlib = {
 		},
 		Purple = {
 			["Color Hub 1"] = ColorSequence.new({
-ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 10, 30)),
-ColorSequenceKeypoint.new(0.50, Color3.fromRGB(40, 15, 60)),
-ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 10, 30))
-}),
-["Color Hub 2"] = Color3.fromRGB(25, 10, 40),
-["Color Stroke"] = Color3.fromRGB(70, 0, 110),
-["Color Theme"] = Color3.fromRGB(140, 0, 255),
-["Color Text"] = Color3.fromRGB(240, 240, 240),
-["Color Dark Text"] = Color3.fromRGB(180, 160, 200),
-["Color Dark Purple"] = Color3.fromRGB(110, 0, 200),
-["Color Hub 9"] = Color3.fromRGB(0, 0, 0),
-["Color Dark Greem"] = Color3.fromRGB(43, 255, 0) 
+				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(35, 10, 55)),
+				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(65, 20, 100)),
+				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(35, 10, 55))
+			}),
+			["Color Hub 2"] = Color3.fromRGB(40, 12, 65),
+			["Color Stroke"] = Color3.fromRGB(170, 0, 255),
+			["Color Theme"] = Color3.fromRGB(190, 30, 255),
+			["Color Text"] = Color3.fromRGB(255, 255, 255),
+			["Color Dark Text"] = Color3.fromRGB(215, 175, 255),
+			["Color Dark Purple"] = Color3.fromRGB(140, 0, 255),
+			["Color Hub 9"] = Color3.fromRGB(15, 5, 25),
+			["Color Dark Greem"] = Color3.fromRGB(43, 255, 0) 
 		}
-	},
+	},	
 	Info = {
 		Version = "1.2.0"
 	},
@@ -2171,6 +2181,7 @@ end
 		if not FirstTab then Container.Parent = Containers end
 		
 		local function Tabs()
+		PlayClick()
 			if Container.Parent then return end
 			for _,Frame in pairs(ContainerList) do
 				if Frame:IsA("ScrollingFrame") and Frame ~= Container then
@@ -2291,6 +2302,7 @@ end
 			})
 			
 			FButton.Activated:Connect(function()
+			PlayClick()
 				Funcs:FireCallback(Callback)
 			end)
 			
@@ -2343,6 +2355,9 @@ end
 			
 			local WaitClick
 			local function SetToggle(Val)
+			
+			PlayClick()
+			
 				if WaitClick then return end
 				
 				WaitClick, Default = true, Val
@@ -2491,6 +2506,7 @@ end
 			end
 			
 			local function Minimize()
+			PlayClick()
 				if WaitClick then return end
 				WaitClick = true
 				if NoClickFrame.Visible then
@@ -2814,6 +2830,7 @@ end
 			end
 			
 			SliderHolder.MouseButton1Down:Connect(function()
+			PlayClick()
 				CreateTween({SliderIcon, "Transparency", 0, 0.3})
 				Container.ScrollingEnabled = false
 				while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do task.wait()
