@@ -8,6 +8,148 @@ local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local PlayerMouse = Player:GetMouse()
 
+-- ============================================
+-- SISTEMA DE PLANOS (FREE / PREMIUM) - COM VALIDADE
+-- ============================================
+local PremiumFile = "NEVLIZ_Premium.json"
+local isPremium = false
+local PremiumExpiresAt = 0
+
+local SECRET = "N3vL1z_H4ck3r_S3cr3t_2026_X9kL#mP2qR" -- TROQUE ESTE VALOR
+
+local Plans = {
+	W = { Name = "Semanal", Days = 7 },
+	M = { Name = "Mensal", Days = 30 },
+	Y = { Name = "Anual", Days = 365 },
+	P = { Name = "Permanente", Days = 0 }
+}
+
+local function GetHWID()
+	if gethwid then
+		local success, hwid = pcall(gethwid)
+		if success and hwid then return tostring(hwid) end
+	end
+	local fallback = tostring(game.JobId) .. tostring(game.PlaceId) .. tostring(Player.UserId)
+	if syn and syn.crypt and syn.crypt.hash then
+		return syn.crypt.hash(fallback)
+	end
+	return fallback
+end
+
+local function SimpleHash(str)
+	local hash = 0
+	for i = 1, #str do
+		hash = (hash * 31 + string.byte(str, i)) % 2147483647
+	end
+	return tostring(hash)
+end
+
+local function GenerateExpectedKey(userId, planCode)
+	local raw = SECRET .. tostring(userId) .. planCode .. "PREMIUM_V2"
+	local hash = SimpleHash(raw)
+	local digits = string.format("%016d", tonumber(hash:sub(1, 10)) % 10000000000000000)
+	return "pr-" .. planCode .. "-" .. digits .. "$"
+end
+
+local function ValidatePremiumKey(key)
+	if type(key) \~= "string" then return false, nil end
+	key = key:gsub("%s+", "")
+
+	local planCode, digits = key:match("^pr%-([WMYP])%-(%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d)%$$")
+	if not planCode or not digits then return false, nil end
+	if not Plans[planCode] then return false, nil end
+
+	local expected = GenerateExpectedKey(Player.UserId, planCode)
+	if key \~= expected then return false, nil end
+
+	return true, planCode
+end
+
+local function LoadPremiumStatus()
+	if not (readfile and isfile) then return false end
+
+	local success, content = pcall(function()
+		if isfile(PremiumFile) then return readfile(PremiumFile) end
+	end)
+	if not success or not content then return false end
+
+	local ok, data = pcall(function()
+		return HttpService:JSONDecode(content)
+	end)
+	if not ok or type(data) \~= "table" then return false end
+
+	if data.Premium \~= true then return false end
+	if type(data.UserId) \~= "number" or data.UserId \~= Player.UserId then
+		pcall(function() if delfile then delfile(PremiumFile) end end)
+		return false
+	end
+	if type(data.HWID) \~= "string" or data.HWID \~= GetHWID() then
+		pcall(function() if delfile then delfile(PremiumFile) end end)
+		return false
+	end
+
+	local expectedSig = SimpleHash(SECRET .. tostring(data.UserId) .. data.HWID .. tostring(data.UnlockedAt) .. tostring(data.ExpiresAt or 0))
+	if data.Signature \~= expectedSig then
+		pcall(function() if delfile then delfile(PremiumFile) end end)
+		return false
+	end
+
+	if data.ExpiresAt and data.ExpiresAt > 0 and os.time() > data.ExpiresAt then
+		pcall(function() if delfile then delfile(PremiumFile) end end)
+		return false
+	end
+
+	isPremium = true
+	PremiumExpiresAt = data.ExpiresAt or 0
+	return true
+end
+
+local function SavePremiumStatus(planCode, keyUsed)
+	if not writefile then return end
+
+	local days = Plans[planCode] and Plans[planCode].Days or 0
+	local expiresAt = 0
+	if days > 0 then
+		expiresAt = os.time() + (days * 86400)
+	end
+
+	local currentUserId = Player.UserId
+	local currentHWID = GetHWID()
+	local unlockTime = os.time()
+
+	local data = {
+		Premium = true,
+		UserId = currentUserId,
+		HWID = currentHWID,
+		Plan = planCode,
+		UnlockedAt = unlockTime,
+		ExpiresAt = expiresAt,
+		KeyUsed = keyUsed or "unknown",
+		Signature = SimpleHash(SECRET .. tostring(currentUserId) .. currentHWID .. tostring(unlockTime) .. tostring(expiresAt))
+	}
+
+	pcall(function()
+		writefile(PremiumFile, HttpService:JSONEncode(data))
+	end)
+
+	isPremium = true
+	PremiumExpiresAt = expiresAt
+end
+
+local function GetPremiumStatusText()
+	if not isPremium then return "FREE" end
+	if PremiumExpiresAt == 0 then return "Permanente" end
+
+	local remaining = PremiumExpiresAt - os.time()
+	if remaining <= 0 then return "Expirado" end
+
+	local days = math.floor(remaining / 86400)
+	local hours = math.floor((remaining % 86400) / 3600)
+	return string.format("%dd %dh", days, hours)
+end
+
+LoadPremiumStatus()
+
 local ClickSound = Instance.new("Sound")
 ClickSound.Name = "UIClick"
 ClickSound.SoundId = "rbxassetid://139658322785649" -- som de clique clássico (pode trocar)
@@ -1882,6 +2024,42 @@ end
 		MinimizeButton
 	})
 	
+	-- ============================================
+-- BADGE DO PLANO (FREE / PREMIUM)
+-- ============================================
+local PlanBadge = Create("TextLabel", TopBar, {
+	Name = "PlanBadge",
+	Size = UDim2.new(0, 68, 0, 18),
+	Position = UDim2.new(1, -95, 0.5), -- fica à esquerda dos botões de minimizar/fechar
+	AnchorPoint = Vector2.new(1, 0.5),
+	BackgroundColor3 = Color3.fromRGB(60, 60, 65),
+	Text = "FREE",
+	TextColor3 = Color3.fromRGB(220, 220, 220),
+	TextSize = 10,
+	Font = Enum.Font.GothamBold,
+	ZIndex = 10
+})
+Make("Corner", PlanBadge, UDim.new(0, 5))
+
+-- Função para atualizar o badge
+local function UpdatePlanBadge()
+	if isPremium then
+		PlanBadge.Text = "PREMIUM"
+		PlanBadge.BackgroundColor3 = Color3.fromRGB(255, 170, 0) -- laranja
+		PlanBadge.TextColor3 = Color3.fromRGB(25, 25, 25)
+		
+		-- Opcional: mostrar tempo restante no tooltip ou texto
+		-- PlanBadge.Text = "PREMIUM • " .. GetPremiumStatusText()
+	else
+		PlanBadge.Text = "FREE"
+		PlanBadge.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+		PlanBadge.TextColor3 = Color3.fromRGB(200, 200, 200)
+	end
+end
+
+-- Atualiza ao iniciar
+UpdatePlanBadge()
+	
 	local Minimized, SaveSize, WaitClick
 	local Window, FirstTab = {}, false
 	function Window:CloseBtn()
@@ -2109,14 +2287,15 @@ end
 	
 	local ContainerList = {}
 	function Window:MakeTab(paste, Configs)
-		if type(paste) == "table" then Configs = paste end
-		local TName = Configs[1] or Configs.Title or "Tab!"
-		local TIcon = Configs[2] or Configs.Icon or ""
-		
-		TIcon = redzlib:GetIcon(TIcon)
-		if not TIcon:find("rbxassetid://") or TIcon:gsub("rbxassetid://", ""):len() < 6 then
-			TIcon = false
-		end
+	if type(paste) == "table" then Configs = paste end
+	local TName = Configs[1] or Configs.Title or "Tab!"
+	local TIcon = Configs[2] or Configs.Icon or ""
+	local IsPremiumTab = Configs.Premium or Configs.IsPremium or false
+
+	TIcon = redzlib:GetIcon(TIcon)
+	if not TIcon:find("rbxassetid://") or TIcon:gsub("rbxassetid://", ""):len() < 6 then
+		TIcon = false
+	end
 		
 		local TabSelect = Make("Button", MainScroll, {
 			Size = UDim2.new(1, 0, 0, 24)
@@ -2180,6 +2359,119 @@ end
 		
 		if not FirstTab then Container.Parent = Containers end
 		
+		local PremiumOverlay = nil
+
+local function CreatePremiumOverlay()
+	local existing = Containers:FindFirstChild("PremiumLock")
+	if existing then existing:Destroy() end
+
+	PremiumOverlay = Create("Frame", Containers, {
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+		BackgroundTransparency = 0.3,
+		ZIndex = 50,
+		Name = "PremiumLock"
+	})
+	Make("Corner", PremiumOverlay)
+
+	local LockFrame = Create("Frame", PremiumOverlay, {
+		Size = UDim2.new(0, 280, 0, 190),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(25, 25, 30),
+		ZIndex = 51
+	})
+	Make("Corner", LockFrame, UDim.new(0, 12))
+	Make("Stroke", LockFrame, nil, Color3.fromRGB(255, 170, 0), 1.5)
+
+	Create("TextLabel", LockFrame, {
+		Size = UDim2.new(1, -20, 0, 28),
+		Position = UDim2.new(0, 10, 0, 12),
+		BackgroundTransparency = 1,
+		Text = "⭐ VERSÃO PREMIUM",
+		TextColor3 = Color3.fromRGB(255, 190, 50),
+		TextSize = 16,
+		Font = Enum.Font.GothamBold,
+		ZIndex = 52
+	})
+
+	Create("TextLabel", LockFrame, {
+		Size = UDim2.new(1, -30, 0, 40),
+		Position = UDim2.new(0, 15, 0, 45),
+		BackgroundTransparency = 1,
+		Text = "Esta aba é exclusiva para usuários Premium.\nDigite sua Key abaixo para desbloquear:",
+		TextColor3 = Color3.fromRGB(200, 200, 200),
+		TextSize = 11,
+		Font = Enum.Font.Gotham,
+		TextWrapped = true,
+		ZIndex = 52
+	})
+
+	local KeyBox = Create("TextBox", LockFrame, {
+		Size = UDim2.new(1, -40, 0, 32),
+		Position = UDim2.new(0.5, 0, 0, 100),
+		AnchorPoint = Vector2.new(0.5, 0),
+		BackgroundColor3 = Color3.fromRGB(40, 40, 45),
+		Text = "",
+		PlaceholderText = "pr-W-################$",
+		PlaceholderColor3 = Color3.fromRGB(120, 120, 120),
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextSize = 13,
+		Font = Enum.Font.Gotham,
+		ClearTextOnFocus = false,
+		ZIndex = 52
+	})
+	Make("Corner", KeyBox, UDim.new(0, 6))
+	Make("Stroke", KeyBox, nil, Color3.fromRGB(80, 80, 90), 1)
+
+	local UnlockBtn = Create("TextButton", LockFrame, {
+		Size = UDim2.new(1, -40, 0, 30),
+		Position = UDim2.new(0.5, 0, 1, -18),
+		AnchorPoint = Vector2.new(0.5, 1),
+		BackgroundColor3 = Color3.fromRGB(255, 170, 0),
+		Text = "DESBLOQUEAR",
+		TextColor3 = Color3.fromRGB(20, 20, 20),
+		TextSize = 13,
+		Font = Enum.Font.GothamBold,
+		AutoButtonColor = false,
+		ZIndex = 52
+	})
+	Make("Corner", UnlockBtn, UDim.new(0, 6))
+
+	UnlockBtn.MouseEnter:Connect(function()
+		UnlockBtn.BackgroundColor3 = Color3.fromRGB(255, 190, 50)
+	end)
+	UnlockBtn.MouseLeave:Connect(function()
+		UnlockBtn.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+	end)
+
+	UnlockBtn.Activated:Connect(function()
+		PlayClick()
+		local key = KeyBox.Text
+		local valid, planCode = ValidatePremiumKey(key)
+
+		if valid then
+			SavePremiumStatus(planCode, key)
+			UpdatePlanBadge()
+
+			local existing = Containers:FindFirstChild("PremiumLock")
+			if existing then existing:Destroy() end
+
+			redzlib:Notify({
+				Title = "Premium Ativado!",
+				Description = "Plano " .. (Plans[planCode] and Plans[planCode].Name or "Premium") .. " desbloqueado!",
+				Duration = 5,
+				Type = "Success"
+			})
+		else
+			KeyBox.Text = ""
+			KeyBox.PlaceholderText = "Key inválida!"
+			task.wait(1.5)
+			KeyBox.PlaceholderText = "pr-W-################$"
+		end
+	end)
+end
+		
 		local function Tabs()
 		PlayClick()
 			if Container.Parent then return end
@@ -2188,6 +2480,15 @@ end
 					Frame.Parent = nil
 				end
 			end
+			
+			-- Controle do Overlay Premium
+if IsPremiumTab and not isPremium then
+	CreatePremiumOverlay()
+else
+	local existing = Containers:FindFirstChild("PremiumLock")
+	if existing then existing:Destroy() end
+end
+
 			Container.Parent = Containers
 			Container.Size = UDim2.new(1, 0, 1, 150)
 			table.foreach(redzlib.Tabs, function(_,Tab)
@@ -2195,6 +2496,7 @@ end
 					Tab.func:Disable()
 				end
 			end)
+			
 			CreateTween({Container, "Size", UDim2.new(1, 0, 1, 0), 0.3})
 			CreateTween({LabelTitle, "TextTransparency", 0, 0.35})
 			CreateTween({LabelIcon, "ImageTransparency", 0, 0.35})
