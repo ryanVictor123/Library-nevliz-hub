@@ -52,7 +52,7 @@ local function GenerateExpectedKey(userId, planCode)
 end
 
 local function ValidatePremiumKey(key)
-	if type(key) ~== "string" then return false, nil end
+	if type(key) ~= "string" then return false, nil end
 	key = key:gsub("%s+", "")
 
 	local planCode, digits = key:match("^pr%-([WMYP])%-(%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d)%$$")
@@ -60,7 +60,7 @@ local function ValidatePremiumKey(key)
 	if not Plans[planCode] then return false, nil end
 
 	local expected = GenerateExpectedKey(Player.UserId, planCode)
-	if key ~== expected then return false, nil end
+	if key ~= expected then return false, nil end
 
 	return true, planCode
 end
@@ -76,20 +76,20 @@ local function LoadPremiumStatus()
 	local ok, data = pcall(function()
 		return HttpService:JSONDecode(content)
 	end)
-	if not ok or type(data) ~== "table" then return false end
+	if not ok or type(data) ~= "table" then return false end
 
-	if data.Premium ~== true then return false end
-	if type(data.UserId) ~== "number" or data.UserId ~== Player.UserId then
+	if data.Premium ~= true then return false end
+	if type(data.UserId) ~= "number" or data.UserId ~= Player.UserId then
 		pcall(function() if delfile then delfile(PremiumFile) end end)
 		return false
 	end
-	if type(data.HWID) ~== "string" or data.HWID ~== GetHWID() then
+	if type(data.HWID) ~= "string" or data.HWID ~= GetHWID() then
 		pcall(function() if delfile then delfile(PremiumFile) end end)
 		return false
 	end
 
 	local expectedSig = SimpleHash(SECRET .. tostring(data.UserId) .. data.HWID .. tostring(data.UnlockedAt) .. tostring(data.ExpiresAt or 0))
-	if data.Signature ~== expectedSig then
+	if data.Signature ~= expectedSig then
 		pcall(function() if delfile then delfile(PremiumFile) end end)
 		return false
 	end
