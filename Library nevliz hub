@@ -12,8 +12,14 @@ local PlayerMouse = Player:GetMouse()
 -- SISTEMA DE TRADUÇÃO AUTOMÁTICA
 -- ============================================
 local TranslationCache = {}
-local PlayerLocale = (Player.LocaleId or "en-us"):lower()
-local IsBrazilian = PlayerLocale:find("pt") ~= nil
+
+local locale = Player.LocaleId
+if type(locale) ~= "string" then
+	locale = "en-us"
+end
+
+local PlayerLocale = string.lower(locale)
+local IsBrazilian = string.find(PlayerLocale, "pt") ~= nil
 
 local LanguageMap = {
 	["en"] = "en", ["en-us"] = "en", ["en-gb"] = "en",
@@ -28,7 +34,7 @@ local LanguageMap = {
 
 local TargetLang = "en"
 for code, lang in pairs(LanguageMap) do
-	if PlayerLocale:find(code) then
+	if string.find(PlayerLocale, code) then
 		TargetLang = lang
 		break
 	end
