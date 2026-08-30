@@ -12,14 +12,8 @@ local PlayerMouse = Player:GetMouse()
 -- SISTEMA DE TRADUÇÃO AUTOMÁTICA
 -- ============================================
 local TranslationCache = {}
-
-local locale = Player.LocaleId
-if type(locale) ~= "string" then
-	locale = "en-us"
-end
-
-local PlayerLocale = string.lower(locale)
-local IsBrazilian = string.find(PlayerLocale, "pt") ~= nil
+local PlayerLocale = (Player.LocaleId or "en-us"):lower()
+local IsBrazilian = PlayerLocale:find("pt") ~= nil
 
 local LanguageMap = {
 	["en"] = "en", ["en-us"] = "en", ["en-gb"] = "en",
@@ -34,7 +28,7 @@ local LanguageMap = {
 
 local TargetLang = "en"
 for code, lang in pairs(LanguageMap) do
-	if string.find(PlayerLocale, code) then
+	if PlayerLocale:find(code) then
 		TargetLang = lang
 		break
 	end
@@ -1631,7 +1625,7 @@ function redzlib:SetTheme(NewTheme)
 	SaveJson("redz library V5.json", redzlib.Save)
 	Theme = redzlib.Themes[NewTheme]
 	
-	Comnection:FireConnection("ThemeChanged", NewTheme)
+	Connection:FireConnection("ThemeChanged", NewTheme)
 	table.foreach(redzlib.Instances, function(_,Val)
 		if Val.Type == "Gradient" then
 			Val.Instance.Color = Theme["Color Hub 1"]
@@ -3710,7 +3704,7 @@ end
 -- INTERCEPTAÇÃO AUTOMÁTICA DE TEXTOS
 -- ============================================
 local function ProtectSetMethod(obj, methodName)
-	if not obj or type(obj[methodName]) \~= "function" then return end
+	if not obj or type(obj[methodName]) ~= "function" then return end
 	
 	local original = obj[methodName]
 	obj[methodName] = function(self, ...)
