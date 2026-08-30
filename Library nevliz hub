@@ -9,6 +9,87 @@ local Player = Players.LocalPlayer
 local PlayerMouse = Player:GetMouse()
 
 -- ============================================
+-- SISTEMA DE TRADUÇÃO AUTOMÁTICA (Google Translate)
+-- ============================================
+local TranslationCache = {}
+local PlayerLocale = (Player.LocaleId or "en-us"):lower()
+local IsBrazilian = PlayerLocale:find("pt") \~= nil
+
+local LanguageMap = {
+	["en"] = "en",
+	["en-us"] = "en",
+	["en-gb"] = "en",
+	["es"] = "es",
+	["es-es"] = "es",
+	["es-mx"] = "es",
+	["fr"] = "fr",
+	["de"] = "de",
+	["it"] = "it",
+	["ru"] = "ru",
+	["ja"] = "ja",
+	["ko"] = "ko",
+	["zh"] = "zh-CN",
+	["zh-cn"] = "zh-CN",
+	["zh-tw"] = "zh-TW",
+	["ar"] = "ar",
+	["tr"] = "tr",
+	["pl"] = "pl",
+	["nl"] = "nl",
+	["sv"] = "sv",
+	["vi"] = "vi",
+	["th"] = "th",
+	["id"] = "id",
+	["hi"] = "hi",
+}
+
+local TargetLang = "en" -- padrão
+for code, lang in pairs(LanguageMap) do
+	if PlayerLocale:find(code) then
+		TargetLang = lang
+		break
+	end
+end
+
+local function Translate(text)
+	if IsBrazilian or type(text) \~= "string" or text:gsub("%s", "") == "" then
+		return text
+	end
+
+	-- Cache
+	if TranslationCache[text] then
+		return TranslationCache[text]
+	end
+
+	local encoded = HttpService:UrlEncode(text)
+	local url = ("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=%s&dt=t&q=%s"):format(TargetLang, encoded)
+
+	local success, response = pcall(function()
+		return HttpService:GetAsync(url)
+	end)
+
+	if success and response then
+		local ok, data = pcall(function()
+			return HttpService:JSONDecode(response)
+		end)
+
+		if ok and data and data[1] and data[1][1] and data[1][1][1] then
+			local translated = data[1][1][1]
+			TranslationCache[text] = translated
+			return translated
+		end
+	end
+
+	-- Se falhar, retorna o original
+	TranslationCache[text] = text
+	return text
+end
+
+-- Função auxiliar para traduzir tabelas de opções facilmente
+local function T(str)
+	return Translate(str)
+end
+
+-- ============================================
 -- SISTEMA DE PLANOS (FREE / PREMIUM) - COM VALIDADE
 -- ============================================
 local PremiumFile = "NEVLIZ_Premium.json"
