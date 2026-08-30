@@ -9,40 +9,24 @@ local Player = Players.LocalPlayer
 local PlayerMouse = Player:GetMouse()
 
 -- ============================================
--- SISTEMA DE TRADUÇÃO AUTOMÁTICA (Google Translate)
+-- SISTEMA DE TRADUÇÃO AUTOMÁTICA
 -- ============================================
 local TranslationCache = {}
 local PlayerLocale = (Player.LocaleId or "en-us"):lower()
-local IsBrazilian = PlayerLocale:find("pt") \~= nil
+local IsBrazilian = PlayerLocale:find("pt") ~= nil
 
 local LanguageMap = {
-	["en"] = "en",
-	["en-us"] = "en",
-	["en-gb"] = "en",
-	["es"] = "es",
-	["es-es"] = "es",
-	["es-mx"] = "es",
-	["fr"] = "fr",
-	["de"] = "de",
-	["it"] = "it",
-	["ru"] = "ru",
-	["ja"] = "ja",
-	["ko"] = "ko",
-	["zh"] = "zh-CN",
-	["zh-cn"] = "zh-CN",
-	["zh-tw"] = "zh-TW",
-	["ar"] = "ar",
-	["tr"] = "tr",
-	["pl"] = "pl",
-	["nl"] = "nl",
-	["sv"] = "sv",
-	["vi"] = "vi",
-	["th"] = "th",
-	["id"] = "id",
-	["hi"] = "hi",
+	["en"] = "en", ["en-us"] = "en", ["en-gb"] = "en",
+	["es"] = "es", ["es-es"] = "es", ["es-mx"] = "es",
+	["fr"] = "fr", ["de"] = "de", ["it"] = "it",
+	["ru"] = "ru", ["ja"] = "ja", ["ko"] = "ko",
+	["zh"] = "zh-CN", ["zh-cn"] = "zh-CN", ["zh-tw"] = "zh-TW",
+	["ar"] = "ar", ["tr"] = "tr", ["pl"] = "pl",
+	["nl"] = "nl", ["sv"] = "sv", ["vi"] = "vi",
+	["th"] = "th", ["id"] = "id", ["hi"] = "hi",
 }
 
-local TargetLang = "en" -- padrão
+local TargetLang = "en"
 for code, lang in pairs(LanguageMap) do
 	if PlayerLocale:find(code) then
 		TargetLang = lang
@@ -51,11 +35,10 @@ for code, lang in pairs(LanguageMap) do
 end
 
 local function Translate(text)
-	if IsBrazilian or type(text) \~= "string" or text:gsub("%s", "") == "" then
+	if IsBrazilian or type(text) ~= "string" or text:gsub("%s", "") == "" then
 		return text
 	end
 
-	-- Cache
 	if TranslationCache[text] then
 		return TranslationCache[text]
 	end
@@ -79,12 +62,10 @@ local function Translate(text)
 		end
 	end
 
-	-- Se falhar, retorna o original
 	TranslationCache[text] = text
 	return text
 end
 
--- Função auxiliar para traduzir tabelas de opções facilmente
 local function T(str)
 	return Translate(str)
 end
@@ -1148,14 +1129,17 @@ local SetProps, SetChildren, InsertTheme, Create do
 		return Instance
 	end
 	
-	SetProps = function(Instance, Props)
-		if Props then
-			table.foreach(Props, function(prop, value)
-				Instance[prop] = value
-			end)
+SetProps = function(Instance, Props)
+	if Props then
+		for prop, value in pairs(Props) do
+			if (prop == "Text" or prop == "PlaceholderText") and type(value) == "string" then
+				value = T(value)
+			end
+			Instance[prop] = value
 		end
-		return Instance
 	end
+	return Instance
+end
 	
 	Create = function(...)
 		local args = {...}
@@ -1576,13 +1560,13 @@ local function ButtonFrame(Instance, Title, Description, HolderSize)
 	local Label = {}
 	function Label:SetTitle(NewTitle)
 		if type(NewTitle) == "string" and NewTitle:gsub(" ", ""):len() > 0 then
-			TitleL.Text = NewTitle
+			TitleL.Text = T(NewTitle)
 		end
 	end
 	function Label:SetDesc(NewDesc)
 		if type(NewDesc) == "string" and NewDesc:gsub(" ", ""):len() > 0 then
 			DescL.Visible = true
-			DescL.Text = NewDesc
+			DescL.Text = T(NewDesc)
 			LabelHolder.Position = UDim2.new(0, 10, 0)
 			LabelHolder.AnchorPoint = Vector2.new(0, 0)
 		else
@@ -3714,6 +3698,91 @@ end
 	MinimizeButton.Activated:Connect(Window.MinimizeBtn)
 
 	return Window
+end
+
+-- ============================================
+-- INTERCEPTAÇÃO AUTOMÁTICA DE TEXTOS
+-- ============================================
+local function ProtectSetMethod(obj, methodName)
+	if not obj or type(obj[methodName]) \~= "function" then return end
+	
+	local original = obj[methodName]
+	obj[methodName] = function(self, ...)
+		local args = {...}
+		for i, v in ipairs(args) do
+			if type(v) == "string" then
+				args[i] = T(v)
+			end
+		end
+		return original(self, table.unpack(args))
+	end
+end
+
+function redzlib.ApplyAutoTranslate(Window)
+	if not Window then return end
+
+	ProtectSetMethod(Window, "Set")
+	ProtectSetMethod(Window, "Dialog")
+
+	local oldMakeTab = Window.MakeTab
+	Window.MakeTab = function(self, ...)
+		local Tab = oldMakeTab(self, ...)
+		
+		if Tab then
+			ProtectSetMethod(Tab, "AddSection")
+			
+			local function ProtectElement(element)
+				if not element then return end
+				ProtectSetMethod(element, "Set")
+				ProtectSetMethod(element, "SetTitle")
+				ProtectSetMethod(element, "SetDesc")
+			end
+
+			local oldAddButton = Tab.AddButton
+			Tab.AddButton = function(self, configs)
+				local btn = oldAddButton(self, configs)
+				ProtectElement(btn)
+				return btn
+			end
+
+			local oldAddToggle = Tab.AddToggle
+			Tab.AddToggle = function(self, configs)
+				local tgl = oldAddToggle(self, configs)
+				ProtectElement(tgl)
+				return tgl
+			end
+
+			local oldAddSlider = Tab.AddSlider
+			Tab.AddSlider = function(self, configs)
+				local sld = oldAddSlider(self, configs)
+				ProtectElement(sld)
+				return sld
+			end
+
+			local oldAddDropdown = Tab.AddDropdown
+			Tab.AddDropdown = function(self, configs)
+				local drp = oldAddDropdown(self, configs)
+				ProtectElement(drp)
+				return drp
+			end
+
+			local oldAddTextBox = Tab.AddTextBox
+			Tab.AddTextBox = function(self, configs)
+				local tb = oldAddTextBox(self, configs)
+				ProtectElement(tb)
+				return tb
+			end
+
+			local oldAddParagraph = Tab.AddParagraph
+			Tab.AddParagraph = function(self, configs)
+				local p = oldAddParagraph(self, configs)
+				ProtectElement(p)
+				return p
+			end
+		end
+		
+		return Tab
+	end
 end
 
 return redzlib
