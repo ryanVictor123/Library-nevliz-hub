@@ -9,68 +9,6 @@ local Player = Players.LocalPlayer
 local PlayerMouse = Player:GetMouse()
 
 -- ============================================
--- SISTEMA DE TRADUÇÃO AUTOMÁTICA
--- ============================================
-local TranslationCache = {}
-local PlayerLocale = (Player.LocaleId or "en-us"):lower()
-local IsBrazilian = PlayerLocale:find("pt") ~= nil
-
-local LanguageMap = {
-	["en"] = "en", ["en-us"] = "en", ["en-gb"] = "en",
-	["es"] = "es", ["es-es"] = "es", ["es-mx"] = "es",
-	["fr"] = "fr", ["de"] = "de", ["it"] = "it",
-	["ru"] = "ru", ["ja"] = "ja", ["ko"] = "ko",
-	["zh"] = "zh-CN", ["zh-cn"] = "zh-CN", ["zh-tw"] = "zh-TW",
-	["ar"] = "ar", ["tr"] = "tr", ["pl"] = "pl",
-	["nl"] = "nl", ["sv"] = "sv", ["vi"] = "vi",
-	["th"] = "th", ["id"] = "id", ["hi"] = "hi",
-}
-
-local TargetLang = "en"
-for code, lang in pairs(LanguageMap) do
-	if PlayerLocale:find(code) then
-		TargetLang = lang
-		break
-	end
-end
-
-local function Translate(text)
-	if IsBrazilian or type(text) ~= "string" or text:gsub("%s", "") == "" then
-		return text
-	end
-
-	if TranslationCache[text] then
-		return TranslationCache[text]
-	end
-
-	local encoded = HttpService:UrlEncode(text)
-	local url = ("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=%s&dt=t&q=%s"):format(TargetLang, encoded)
-
-	local success, response = pcall(function()
-		return HttpService:GetAsync(url)
-	end)
-
-	if success and response then
-		local ok, data = pcall(function()
-			return HttpService:JSONDecode(response)
-		end)
-
-		if ok and data and data[1] and data[1][1] and data[1][1][1] then
-			local translated = data[1][1][1]
-			TranslationCache[text] = translated
-			return translated
-		end
-	end
-
-	TranslationCache[text] = text
-	return text
-end
-
-local function T(str)
-	return Translate(str)
-end
-
--- ============================================
 -- SISTEMA DE PLANOS (FREE / PREMIUM) - COM VALIDADE
 -- ============================================
 local PremiumFile = "NEVLIZ_Premium.json"
@@ -1129,17 +1067,14 @@ local SetProps, SetChildren, InsertTheme, Create do
 		return Instance
 	end
 	
-SetProps = function(Instance, Props)
-	if Props then
-		for prop, value in pairs(Props) do
-			if (prop == "Text" or prop == "PlaceholderText") and type(value) == "string" then
-				value = T(value)
-			end
-			Instance[prop] = value
+	SetProps = function(Instance, Props)
+		if Props then
+			table.foreach(Props, function(prop, value)
+				Instance[prop] = value
+			end)
 		end
+		return Instance
 	end
-	return Instance
-end
 	
 	Create = function(...)
 		local args = {...}
@@ -1560,13 +1495,13 @@ local function ButtonFrame(Instance, Title, Description, HolderSize)
 	local Label = {}
 	function Label:SetTitle(NewTitle)
 		if type(NewTitle) == "string" and NewTitle:gsub(" ", ""):len() > 0 then
-			TitleL.Text = T(NewTitle)
+			TitleL.Text = NewTitle
 		end
 	end
 	function Label:SetDesc(NewDesc)
 		if type(NewDesc) == "string" and NewDesc:gsub(" ", ""):len() > 0 then
 			DescL.Visible = true
-			DescL.Text = T(NewDesc)
+			DescL.Text = NewDesc
 			LabelHolder.Position = UDim2.new(0, 10, 0)
 			LabelHolder.AnchorPoint = Vector2.new(0, 0)
 		else
@@ -3698,91 +3633,6 @@ end
 	MinimizeButton.Activated:Connect(Window.MinimizeBtn)
 
 	return Window
-end
-
--- ============================================
--- INTERCEPTAÇÃO AUTOMÁTICA DE TEXTOS
--- ============================================
-local function ProtectSetMethod(obj, methodName)
-	if not obj or type(obj[methodName]) ~= "function" then return end
-	
-	local original = obj[methodName]
-	obj[methodName] = function(self, ...)
-		local args = {...}
-		for i, v in ipairs(args) do
-			if type(v) == "string" then
-				args[i] = T(v)
-			end
-		end
-		return original(self, table.unpack(args))
-	end
-end
-
-function redzlib.ApplyAutoTranslate(Window)
-	if not Window then return end
-
-	ProtectSetMethod(Window, "Set")
-	ProtectSetMethod(Window, "Dialog")
-
-	local oldMakeTab = Window.MakeTab
-	Window.MakeTab = function(self, ...)
-		local Tab = oldMakeTab(self, ...)
-		
-		if Tab then
-			ProtectSetMethod(Tab, "AddSection")
-			
-			local function ProtectElement(element)
-				if not element then return end
-				ProtectSetMethod(element, "Set")
-				ProtectSetMethod(element, "SetTitle")
-				ProtectSetMethod(element, "SetDesc")
-			end
-
-			local oldAddButton = Tab.AddButton
-			Tab.AddButton = function(self, configs)
-				local btn = oldAddButton(self, configs)
-				ProtectElement(btn)
-				return btn
-			end
-
-			local oldAddToggle = Tab.AddToggle
-			Tab.AddToggle = function(self, configs)
-				local tgl = oldAddToggle(self, configs)
-				ProtectElement(tgl)
-				return tgl
-			end
-
-			local oldAddSlider = Tab.AddSlider
-			Tab.AddSlider = function(self, configs)
-				local sld = oldAddSlider(self, configs)
-				ProtectElement(sld)
-				return sld
-			end
-
-			local oldAddDropdown = Tab.AddDropdown
-			Tab.AddDropdown = function(self, configs)
-				local drp = oldAddDropdown(self, configs)
-				ProtectElement(drp)
-				return drp
-			end
-
-			local oldAddTextBox = Tab.AddTextBox
-			Tab.AddTextBox = function(self, configs)
-				local tb = oldAddTextBox(self, configs)
-				ProtectElement(tb)
-				return tb
-			end
-
-			local oldAddParagraph = Tab.AddParagraph
-			Tab.AddParagraph = function(self, configs)
-				local p = oldAddParagraph(self, configs)
-				ProtectElement(p)
-				return p
-			end
-		end
-		
-		return Tab
-	end
 end
 
 return redzlib
