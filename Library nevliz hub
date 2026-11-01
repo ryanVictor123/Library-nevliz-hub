@@ -188,20 +188,20 @@ local redzlib = {
 			["Color Dark Text"] = Color3.fromRGB(190, 190, 190)
 		},
 		Purple = {
-			["Color Hub 1"] = ColorSequence.new({
-				ColorSequenceKeypoint.new(0.00, Color3.fromRGB(35, 10, 55)),
-				ColorSequenceKeypoint.new(0.50, Color3.fromRGB(65, 20, 100)),
-				ColorSequenceKeypoint.new(1.00, Color3.fromRGB(35, 10, 55))
-			}),
-			["Color Hub 2"] = Color3.fromRGB(40, 12, 65),
-			["Color Stroke"] = Color3.fromRGB(170, 0, 255),
-			["Color Theme"] = Color3.fromRGB(190, 30, 255),
-			["Color Text"] = Color3.fromRGB(255, 255, 255),
-			["Color Dark Text"] = Color3.fromRGB(215, 175, 255),
-			["Color Dark Purple"] = Color3.fromRGB(140, 0, 255),
-			["Color Hub 9"] = Color3.fromRGB(15, 5, 25),
-			["Color Dark Greem"] = Color3.fromRGB(43, 255, 0) 
-		}
+	    ["Color Hub 1"] = ColorSequence.new({
+	        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(60, 20, 100)),
+	        ColorSequenceKeypoint.new(0.50, Color3.fromRGB(100, 40, 150)),
+	        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(60, 20, 100))
+	    }),
+	    ["Color Hub 2"] = Color3.fromRGB(25, 10, 45), -- Roxo bem escuro (fundo dos botões)
+	    ["Color Stroke"] = Color3.fromRGB(160, 80, 255), -- Borda Roxa Brilhante
+	    ["Color Theme"] = Color3.fromRGB(200, 100, 255), -- Roxo principal (destaques)
+	    ["Color Text"] = Color3.fromRGB(255, 255, 255),
+	    ["Color Dark Text"] = Color3.fromRGB(220, 180, 255),
+	    ["Color Dark Purple"] = Color3.fromRGB(160, 50, 255),
+	    ["Color Hub 9"] = Color3.fromRGB(15, 5, 25),
+	    ["Color Dark Greem"] = Color3.fromRGB(43, 255, 0)
+	}
 	},	
 	Info = {
 		Version = "1.2.0"
@@ -1742,30 +1742,53 @@ function redzlib:MakeWindow(Configs)
 	
 	local UISizeX, UISizeY = unpack(redzlib.Save.UISize)
 	local MainFrame = InsertTheme(Create("ImageButton", ScreenGui, {
-		Size = UDim2.fromOffset(UISizeX, UISizeY),
-		Position = UDim2.new(0.5, -UISizeX/2, 0.5, -UISizeY/2),
-		BackgroundTransparency = 1,
-		Name = "Hub"
+	Size = UDim2.fromOffset(UISizeX, UISizeY),
+	Position = UDim2.new(0.5, -UISizeX/2, 0.5, -UISizeY/2),
+	BackgroundTransparency = 0.25, -- Transparência do vidro
+	BackgroundColor3 = Color3.fromRGB(15, 5, 25), -- Cor base escura
+	Name = "Hub",
+	ClipsDescendants = true -- Impede que coisas saiam do cantinho arredondado
 }), "Main")
 
+-- 🟣 CUSTOM BACKGROUND (Sua imagem)
 local BackgroundImage = Instance.new("ImageLabel")
 BackgroundImage.Name = "CustomBackground"
 BackgroundImage.Size = UDim2.fromScale(1, 1)
 BackgroundImage.Position = UDim2.fromScale(0, 0)
 BackgroundImage.BackgroundTransparency = 1
-BackgroundImage.ImageTransparency = 0          -- ajuste (0 = visível forte, 1 = quase invisível)
-BackgroundImage.ScaleType = Enum.ScaleType.Crop   -- ou Fit, Slice, Tile...
-BackgroundImage.Image = "rbxassetid://96319549729549"   -- ← coloque seu ID
-BackgroundImage.ZIndex = -10                       -- fica atrás de tudo
+BackgroundImage.ImageTransparency = 0.85 -- Deixa a imagem beeem sutil no fundo
+BackgroundImage.ScaleType = Enum.ScaleType.Crop
+BackgroundImage.Image = "rbxassetid://96319549729549" -- Seu ID de imagem
+BackgroundImage.ZIndex = -10
 BackgroundImage.Parent = MainFrame
 
-	Make("Gradient", MainFrame, {
-		Rotation = 45
-	})MakeDrag(MainFrame)
-	local MainCorner = Make("Corner", MainFrame)
-	local Components = Create("Folder", MainFrame, {
-		Name = "Components"
-	})
+-- 🟣 DEGRADÊ ROXO COM PRETO
+local MainGradient = Instance.new("UIGradient")
+MainGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 20, 120)), -- Roxo forte
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(25, 10, 40)), -- Roxo escuro
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 0, 10))    -- Quase preto
+})
+MainGradient.Rotation = 135
+MainGradient.Parent = MainFrame
+
+MakeDrag(MainFrame)
+
+-- 🟣 CANTOS BEM ARREDONDADOS
+local MainCorner = Make("Corner", MainFrame)
+MainCorner.CornerRadius = UDim.new(0, 16) -- Aumentei para ficar igual a print
+
+-- Borda fininha de vidro
+local GlassStroke = Create("UIStroke", MainFrame, {
+	Color = Color3.fromRGB(160, 80, 255),
+	Thickness = 1.5,
+	Transparency = 0.3,
+	ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+})
+
+local Components = Create("Folder", MainFrame, {
+	Name = "Components"
+})
 	
 	local DropdownHolder = Create("Folder", ScreenGui, {
 		Name = "Dropdown"
@@ -2357,8 +2380,10 @@ end
 	end
 		
 		local TabSelect = Make("Button", MainScroll, {
-			Size = UDim2.new(1, 0, 0, 24)
-		})Make("Corner", TabSelect)
+	Size = UDim2.new(1, 0, 0, 28) -- Deixa o botão um pouco mais alto
+})
+local TabCorner = Make("Corner", TabSelect) 
+TabCorner.CornerRadius = UDim.new(0, 8) -- ARREDONDA OS BOTÕES DO MENU
 		
 		local LabelTitle = InsertTheme(Create("TextLabel", TabSelect, {
 			Size = UDim2.new(1, TIcon and -25 or -15, 1),
@@ -2390,29 +2415,35 @@ end
 			BackgroundTransparency = FirstTab and 1 or 0
 		}), "Theme")Make("Corner", Selected, UDim.new(0.5, 0))
 		
-		local Container = InsertTheme(Create("ScrollingFrame", {
-			Size = UDim2.new(1, 0, 1, 0),
-			Position = UDim2.new(0, 0, 1),
-			AnchorPoint = Vector2.new(0, 1),
-			ScrollBarThickness = 1.5,
-			BackgroundTransparency = 1,
-			ScrollBarImageTransparency = 0.2,
-			ScrollBarImageColor3 = Theme["Color Theme"],
-			AutomaticCanvasSize = "Y",
-			ScrollingDirection = "Y",
-			BorderSizePixel = 0,
-			CanvasSize = UDim2.new(),
-			Name = ("Container %i [ %s ]"):format(#ContainerList + 1, TName)
-		}, {
-			Create("UIPadding", {
-				PaddingLeft = UDim.new(0, 10),
-				PaddingRight = UDim.new(0, 10),
-				PaddingTop = UDim.new(0, 10),
-				PaddingBottom = UDim.new(0, 10)
-			}), Create("UIListLayout", {
-				Padding = UDim.new(0, 5)
-			})
-		}), "ScrollBar")
+local Container = InsertTheme(Create("ScrollingFrame", {
+	Size = UDim2.new(1, 0, 1, 0),
+	Position = UDim2.new(0, 0, 1),
+	AnchorPoint = Vector2.new(0, 1),
+	ScrollBarThickness = 1.5,
+	BackgroundColor3 = Color3.fromRGB(20, 10, 35), -- Cor de fundo da aba
+	BackgroundTransparency = 0.6, -- Transparente para ver o degradê atrás
+	ScrollBarImageTransparency = 0.2,
+	ScrollBarImageColor3 = Theme["Color Theme"],
+	AutomaticCanvasSize = "Y",
+	ScrollingDirection = "Y",
+	BorderSizePixel = 0,
+	CanvasSize = UDim2.new(),
+	Name = ("Container %i [ %s ]"):format(#ContainerList + 1, TName)
+}, {
+	Create("UIPadding", {
+		PaddingLeft = UDim.new(0, 10),
+		PaddingRight = UDim.new(0, 10),
+		PaddingTop = UDim.new(0, 10),
+		PaddingBottom = UDim.new(0, 10)
+	}), Create("UIListLayout", {
+		Padding = UDim.new(0, 5)
+	})
+}), "ScrollBar")
+
+-- 🟣 ARREDONDAR AS ABAS
+local ContainerCorner = Instance.new("UICorner")
+ContainerCorner.CornerRadius = UDim.new(0, 12)
+ContainerCorner.Parent = Container
 		
 		table.insert(ContainerList, Container)
 		
