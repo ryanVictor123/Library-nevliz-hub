@@ -1742,12 +1742,12 @@ function redzlib:MakeWindow(Configs)
 	
 	local UISizeX, UISizeY = unpack(redzlib.Save.UISize)
 	local MainFrame = InsertTheme(Create("ImageButton", ScreenGui, {
-	Size = UDim2.fromOffset(UISizeX, UISizeY),
-	Position = UDim2.new(0.5, -UISizeX/2, 0.5, -UISizeY/2),
-	BackgroundTransparency = 0.25, -- Transparência do vidro
-	BackgroundColor3 = Color3.fromRGB(15, 5, 25), -- Cor base escura
-	Name = "Hub",
-	ClipsDescendants = true -- Impede que coisas saiam do cantinho arredondado
+    Size = UDim2.fromOffset(UISizeX, UISizeY),
+    Position = UDim2.new(0.5, -UISizeX/2, 0.5, -UISizeY/2),
+    BackgroundTransparency = 0.5, -- 👈 MUDOU AQUI (era 0.25)
+    BackgroundColor3 = Color3.fromRGB(15, 5, 25),
+    Name = "Hub",
+    ClipsDescendants = true 
 }), "Main")
 
 -- 🟣 CUSTOM BACKGROUND (Sua imagem)
@@ -1756,10 +1756,10 @@ BackgroundImage.Name = "CustomBackground"
 BackgroundImage.Size = UDim2.fromScale(1, 1)
 BackgroundImage.Position = UDim2.fromScale(0, 0)
 BackgroundImage.BackgroundTransparency = 1
-BackgroundImage.ImageTransparency = 0.85 -- Deixa a imagem beeem sutil no fundo
+BackgroundImage.ImageTransparency = 0.4 -- 👈 MUDOU AQUI (era 0.85, agora tá bem visível)
 BackgroundImage.ScaleType = Enum.ScaleType.Crop
-BackgroundImage.Image = "rbxassetid://96319549729549" -- Seu ID de imagem
-BackgroundImage.ZIndex = -10
+BackgroundImage.Image = "rbxassetid://96319549729549"
+BackgroundImage.ZIndex = 0 -- 👈 MUDOU AQUI (era -10, agora fica na frente do fundo e atrás dos botões)
 BackgroundImage.Parent = MainFrame
 
 -- 🟣 DEGRADÊ ROXO COM PRETO
